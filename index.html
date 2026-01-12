@@ -1,99 +1,351 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Code, FileCode, AlertCircle, Loader2, Play, RefreshCw, Shield, ShieldAlert, Share2 } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No CSS & JS Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        iframe { border: none; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col">
 
-export default function App() {
-  const [urlInput, setUrlInput] = useState('');
-  const [currentUrl, setCurrentUrl] = useState('');
-  const [rawHtml, setRawHtml] = useState('');
-  const [processedHtml, setProcessedHtml] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  
-  // Toggles
-  const [cssEnabled, setCssEnabled] = useState(true);
-  const [jsEnabled, setJsEnabled] = useState(true);
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 shadow-lg z-10">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2 select-none cursor-pointer" onclick="window.location.reload()">
+                <div class="bg-blue-600 p-2 rounded-lg">
+                    <i data-lucide="file-code" class="text-white w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">No CSS & JS</h1>
+                    <p class="text-xs text-slate-400">GitHub Pages Ready (Vanilla JS)</p>
+                </div>
+            </div>
 
-  // Helper to ensure URL has protocol
-  const normalizeUrl = (url) => {
-    if (!url) return '';
-    const trimmed = url.trim();
-    if (!trimmed.match(/^https?:\/\//)) {
-      return `https://${trimmed}`;
-    }
-    return trimmed;
-  };
+            <form id="urlForm" class="flex-1 max-w-2xl w-full flex gap-2">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="search" class="text-slate-500 w-4 h-4"></i>
+                    </div>
+                    <input
+                        id="urlInput"
+                        type="text"
+                        placeholder="Enter website URL (e.g., example.com)"
+                        class="block w-full pl-10 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-slate-600 text-sm text-white"
+                    />
+                </div>
+                <button 
+                    type="submit" 
+                    id="loadBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span id="loadBtnText">Load Site</span>
+                </button>
+            </form>
+        </div>
+    </header>
 
-  // Check URL params on initial load to support sharing (e.g., ?url=example.com)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlParam = params.get('url');
-    if (urlParam) {
-      const target = normalizeUrl(urlParam);
-      setUrlInput(target);
-      // We can't immediately call fetchWebsite here easily due to state updates,
-      // but we can set a flag or just let the user hit enter.
-      // Better user experience: auto-trigger if url is present.
-      triggerFetch(target);
-    } else {
-        setUrlInput('https://example.com');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col max-w-7xl mx-auto w-full p-4 gap-4 h-[calc(100vh-80px)]">
+        
+        <!-- Controls Bar -->
+        <div class="bg-slate-800 rounded-xl p-4 border border-slate-700 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+            <div class="flex items-center gap-2 text-sm text-slate-400 overflow-hidden">
+                <div id="statusDot" class="flex-shrink-0 w-2 h-2 rounded-full bg-slate-500"></div>
+                <span id="currentUrlDisplay" class="truncate max-w-[150px] md:max-w-md">Ready to load URL</span>
+                <button onclick="copyShareLink()" class="ml-2 text-slate-500 hover:text-blue-400 transition-colors" title="Copy Link">
+                   <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
 
-  const triggerFetch = (url) => {
-      // Small wrapper to call fetch logic imperatively
-      fetchWebsite(null, url);
-  };
+            <div class="flex items-center gap-3">
+                <button id="cssBtn" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border select-none bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600">
+                    <i data-lucide="shield" class="text-blue-400 w-4 h-4"></i>
+                    <span>Remove CSS</span>
+                </button>
 
-  const fetchWebsite = async (e, overrideUrl) => {
-    if (e) e.preventDefault();
-    
-    const targetUrl = normalizeUrl(overrideUrl || urlInput);
-    if (!targetUrl) return;
+                <button id="jsBtn" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border select-none bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600">
+                    <i data-lucide="code" class="text-purple-400 w-4 h-4"></i>
+                    <span>Remove JS</span>
+                </button>
+                
+                <button 
+                    onclick="resetFilters()"
+                    class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                    title="Reset Filters"
+                >
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
 
-    setLoading(true);
-    setError('');
-    setRawHtml('');
-    setProcessedHtml('');
-    setCurrentUrl(targetUrl);
+        <!-- Viewport Area -->
+        <div class="flex-1 bg-white rounded-xl overflow-hidden border border-slate-700 relative shadow-2xl">
+            
+            <!-- Loading Overlay -->
+            <div id="loadingOverlay" class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm z-20 flex items-center justify-center flex-col gap-3 hidden">
+                <i data-lucide="loader-2" class="text-blue-500 w-12 h-12 animate-spin"></i>
+                <p class="font-medium text-white">Fetching content...</p>
+            </div>
 
-    // Update browser URL without reloading for easy sharing
-    const newUrl = new URL(window.location);
-    newUrl.searchParams.set('url', targetUrl);
-    window.history.pushState({}, '', newUrl);
+            <!-- Error Overlay -->
+            <div id="errorOverlay" class="absolute inset-0 flex items-center justify-center z-10 p-6 hidden">
+                <div class="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 max-w-lg text-center backdrop-blur-md">
+                    <i data-lucide="alert-circle" class="text-red-500 mx-auto mb-4 w-12 h-12"></i>
+                    <h3 class="text-xl font-bold text-red-500 mb-2">Oops! Could not load website</h3>
+                    <p id="errorText" class="text-slate-300 mb-4"></p>
+                    <div class="text-sm text-slate-400 bg-slate-900/50 p-4 rounded-lg text-left">
+                        <p class="font-semibold mb-1">Why did this happen?</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>The website might block CORS proxies.</li>
+                            <li>The URL might be invalid.</li>
+                            <li>Mixed Content (HTTP vs HTTPS).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
 
-    try {
-      // 1. Use allorigins.win as a CORS proxy.
-      // 2. Add a timestamp to prevent caching on GitHub Pages or the proxy side.
-      const timestamp = new Date().getTime();
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
-      
-      const response = await fetch(proxyUrl, {
-          cache: 'no-store' // specific directive for browser
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load. Status: ${response.status}`);
-      }
+            <!-- Empty State -->
+            <div id="emptyState" class="absolute inset-0 flex items-center justify-center z-10 text-slate-500">
+               <div class="text-center">
+                 <i data-lucide="shield-alert" class="mx-auto mb-4 opacity-20 w-16 h-16"></i>
+                 <p class="text-lg font-medium">Ready to Experiment</p>
+                 <p class="text-sm opacity-60">Enter a URL to see what it looks like without CSS or JS.</p>
+               </div>
+            </div>
 
-      const text = await response.text();
-      
-      if (!text || text.trim().length === 0) {
-        throw new Error('Received empty response from the website.');
-      }
+            <!-- The Iframe -->
+            <iframe 
+                id="previewFrame"
+                title="Preview"
+                class="w-full h-full bg-white hidden"
+                sandbox="allow-same-origin allow-scripts allow-forms" 
+            ></iframe>
+        </div>
 
-      setRawHtml(text);
-    } catch (err) {
-      setError(`Error loading website. It might be blocking proxies or CORS. (${err.message})`);
-    } finally {
-      setLoading(false);
-    }
-  };
+        <div class="flex justify-between text-slate-500 text-xs py-2 px-1">
+            <span>Powered by allorigins.win</span>
+            <span>Runs entirely in your browser</span>
+        </div>
+    </main>
 
-  // Function to process HTML based on toggles
-  const processHtmlContent = useCallback(() => {
-    if (!rawHtml) return;
+    <script>
+        // State
+        let currentUrl = '';
+        let rawHtml = '';
+        let cssEnabled = true;
+        let jsEnabled = true;
 
-    let html = rawHtml;
+        // Elements
+        const urlInput = document.getElementById('urlInput');
+        const urlForm = document.getElementById('urlForm');
+        const loadBtn = document.getElementById('loadBtn');
+        const statusDot = document.getElementById('statusDot');
+        const currentUrlDisplay = document.getElementById('currentUrlDisplay');
+        const cssBtn = document.getElementById('cssBtn');
+        const jsBtn = document.getElementById('jsBtn');
+        const previewFrame = document.getElementById('previewFrame');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const errorOverlay = document.getElementById('errorOverlay');
+        const emptyState = document.getElementById('emptyState');
+        const errorText = document.getElementById('errorText');
 
-    // 1. Inject
+        // Icons initialization
+        lucide.createIcons();
+
+        // Initialization
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const urlParam = params.get('url');
+            if (urlParam) {
+                const target = normalizeUrl(urlParam);
+                urlInput.value = target;
+                fetchWebsite(target);
+            } else {
+                urlInput.value = 'https://example.com';
+            }
+        });
+
+        // Event Listeners
+        urlForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            fetchWebsite(urlInput.value);
+        });
+
+        cssBtn.addEventListener('click', () => {
+            cssEnabled = !cssEnabled;
+            updateButtons();
+            processHtmlContent();
+        });
+
+        jsBtn.addEventListener('click', () => {
+            jsEnabled = !jsEnabled;
+            updateButtons();
+            processHtmlContent();
+        });
+
+        function resetFilters() {
+            cssEnabled = true;
+            jsEnabled = true;
+            updateButtons();
+            processHtmlContent();
+        }
+
+        // Functions
+        function normalizeUrl(url) {
+            if (!url) return '';
+            const trimmed = url.trim();
+            if (!trimmed.match(/^https?:\/\//)) {
+                return `https://${trimmed}`;
+            }
+            return trimmed;
+        }
+
+        function updateButtons() {
+            // CSS Button
+            if (cssEnabled) {
+                cssBtn.className = "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border select-none bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600";
+                cssBtn.innerHTML = `<i data-lucide="shield" class="text-blue-400 w-4 h-4"></i><span>Remove CSS</span>`;
+            } else {
+                cssBtn.className = "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border select-none bg-red-500/10 border-red-500/50 text-red-400 hover:bg-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.2)]";
+                cssBtn.innerHTML = `<i data-lucide="shield" class="text-red-400 w-4 h-4"></i><span>CSS Removed</span>`;
+            }
+
+            // JS Button
+            if (jsEnabled) {
+                jsBtn.className = "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border select-none bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600";
+                jsBtn.innerHTML = `<i data-lucide="code" class="text-purple-400 w-4 h-4"></i><span>Remove JS</span>`;
+            } else {
+                jsBtn.className = "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border select-none bg-yellow-500/10 border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.2)]";
+                jsBtn.innerHTML = `<i data-lucide="code" class="text-yellow-400 w-4 h-4"></i><span>JS Removed</span>`;
+            }
+            lucide.createIcons();
+        }
+
+        async function fetchWebsite(inputUrl) {
+            const targetUrl = normalizeUrl(inputUrl);
+            if (!targetUrl) return;
+
+            setLoading(true);
+            currentUrl = targetUrl;
+            rawHtml = '';
+
+            // Update UI
+            currentUrlDisplay.textContent = targetUrl;
+            currentUrlDisplay.title = targetUrl;
+            statusDot.className = "flex-shrink-0 w-2 h-2 rounded-full bg-yellow-500 animate-pulse";
+            
+            // URL Params
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('url', targetUrl);
+            window.history.pushState({}, '', newUrl);
+
+            try {
+                const timestamp = new Date().getTime();
+                const proxies = [
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`,
+                    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+                ];
+
+                let fetchedText = null;
+                let lastError = null;
+
+                for (const proxyUrl of proxies) {
+                    try {
+                        const response = await fetch(proxyUrl, { cache: 'no-store' });
+                        if (response.ok) {
+                            const text = await response.text();
+                            if (text && text.trim().length > 0) {
+                                fetchedText = text;
+                                break;
+                            }
+                        }
+                    } catch (err) {
+                        console.warn(`Proxy failed: ${proxyUrl}`, err);
+                        lastError = err;
+                    }
+                }
+
+                if (!fetchedText) {
+                    throw new Error(lastError ? lastError.message : "All proxies failed to fetch content.");
+                }
+
+                rawHtml = fetchedText;
+                processHtmlContent();
+                statusDot.className = "flex-shrink-0 w-2 h-2 rounded-full bg-green-500";
+                
+            } catch (err) {
+                showError(err.message);
+                statusDot.className = "flex-shrink-0 w-2 h-2 rounded-full bg-red-500";
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function processHtmlContent() {
+            if (!rawHtml) return;
+
+            let html = rawHtml;
+            const baseTag = `<base href="${currentUrl}" target="_blank" />`;
+            
+            if (html.includes('<head>')) {
+                html = html.replace('<head>', `<head>${baseTag}`);
+            } else if (html.includes('<html')) {
+                html = html.replace(/(<html[^>]*>)/i, `$1<head>${baseTag}</head>`);
+            } else {
+                html = `${baseTag}${html}`;
+            }
+
+            if (!cssEnabled) {
+                html = html.replace(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gi, '<!-- CSS Link Removed -->');
+                html = html.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, '<!-- Style Block Removed -->');
+                html = html.replace(/\sstyle\s*=\s*["'][^"']*["']/gi, '');
+            }
+
+            if (!jsEnabled) {
+                html = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gi, '<!-- Script Removed -->');
+                html = html.replace(/\s+on[a-z]+\s*=\s*["'][^"']*["']/gi, '');
+            }
+
+            previewFrame.srcdoc = html;
+            previewFrame.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            errorOverlay.classList.add('hidden');
+        }
+
+        function setLoading(isLoading) {
+            if (isLoading) {
+                loadingOverlay.classList.remove('hidden');
+                loadBtn.disabled = true;
+                loadBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                loadingOverlay.classList.add('hidden');
+                loadBtn.disabled = false;
+                loadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function showError(msg) {
+            errorText.textContent = msg;
+            errorOverlay.classList.remove('hidden');
+            previewFrame.classList.add('hidden');
+            emptyState.classList.add('hidden');
+        }
+
+        function copyShareLink() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url);
+            alert('Link copied to clipboard!');
+        }
+    </script>
+</body>
+</html>
