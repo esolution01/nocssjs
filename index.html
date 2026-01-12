@@ -1,1 +1,99 @@
-<html></html>
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, Code, FileCode, AlertCircle, Loader2, Play, RefreshCw, Shield, ShieldAlert, Share2 } from 'lucide-react';
+
+export default function App() {
+  const [urlInput, setUrlInput] = useState('');
+  const [currentUrl, setCurrentUrl] = useState('');
+  const [rawHtml, setRawHtml] = useState('');
+  const [processedHtml, setProcessedHtml] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  // Toggles
+  const [cssEnabled, setCssEnabled] = useState(true);
+  const [jsEnabled, setJsEnabled] = useState(true);
+
+  // Helper to ensure URL has protocol
+  const normalizeUrl = (url) => {
+    if (!url) return '';
+    const trimmed = url.trim();
+    if (!trimmed.match(/^https?:\/\//)) {
+      return `https://${trimmed}`;
+    }
+    return trimmed;
+  };
+
+  // Check URL params on initial load to support sharing (e.g., ?url=example.com)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlParam = params.get('url');
+    if (urlParam) {
+      const target = normalizeUrl(urlParam);
+      setUrlInput(target);
+      // We can't immediately call fetchWebsite here easily due to state updates,
+      // but we can set a flag or just let the user hit enter.
+      // Better user experience: auto-trigger if url is present.
+      triggerFetch(target);
+    } else {
+        setUrlInput('https://example.com');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const triggerFetch = (url) => {
+      // Small wrapper to call fetch logic imperatively
+      fetchWebsite(null, url);
+  };
+
+  const fetchWebsite = async (e, overrideUrl) => {
+    if (e) e.preventDefault();
+    
+    const targetUrl = normalizeUrl(overrideUrl || urlInput);
+    if (!targetUrl) return;
+
+    setLoading(true);
+    setError('');
+    setRawHtml('');
+    setProcessedHtml('');
+    setCurrentUrl(targetUrl);
+
+    // Update browser URL without reloading for easy sharing
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set('url', targetUrl);
+    window.history.pushState({}, '', newUrl);
+
+    try {
+      // 1. Use allorigins.win as a CORS proxy.
+      // 2. Add a timestamp to prevent caching on GitHub Pages or the proxy side.
+      const timestamp = new Date().getTime();
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&t=${timestamp}`;
+      
+      const response = await fetch(proxyUrl, {
+          cache: 'no-store' // specific directive for browser
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load. Status: ${response.status}`);
+      }
+
+      const text = await response.text();
+      
+      if (!text || text.trim().length === 0) {
+        throw new Error('Received empty response from the website.');
+      }
+
+      setRawHtml(text);
+    } catch (err) {
+      setError(`Error loading website. It might be blocking proxies or CORS. (${err.message})`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to process HTML based on toggles
+  const processHtmlContent = useCallback(() => {
+    if (!rawHtml) return;
+
+    let html = rawHtml;
+
+    // 1. Inject
